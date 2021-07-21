@@ -10,14 +10,13 @@ import Foundation
 import Logging
 import LoggingFormatAndPipe
 
-
 class LogFile:TextOutputStream
 {
     let handle:FileHandle
 
     init?()
     {
-        let appname     = Bundle.main.infoDictionary![kCFBundleNameKey as String] as! String
+        let appname     = Bundle.main.infoDictionary![kCFBundleNameKey as String] as? String ?? ProcessInfo.processInfo.processName
         let newlogname  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("\(appname).log")
 
         Self.logrotate(logfilename: newlogname)
@@ -97,10 +96,15 @@ public class JLog
             handlers.append(handler)
         }
 
-        let multiplexLogHandler = MultiplexLogHandler(handlers)
+        var multiplexLogHandler = MultiplexLogHandler(handlers)
 //        LoggingSystem.bootstrap(multiplexLogHandler)
 //        var logger = Logger(label: "eu.jinx.Logger")
 //        logger.logLevel = .trace
+        #if DEBUG
+            multiplexLogHandler.logLevel = .trace
+        #else
+            multiplexLogHandler.logLevel = .warning
+        #endif
         _logger = multiplexLogHandler
         return multiplexLogHandler
     }
@@ -135,9 +139,9 @@ extension JLog {
     @inlinable
     public static func trace(_ message: @autoclosure () -> Logger.Message = "",
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .trace, message: message(), metadata: metadata(), file: file, function: function, line: line)
-//        Self.logger.log(level: .trace, message: message(), metadata: metadata(), source: nil, file:file, function:function, line:line)
+        Self.logger.log(level: .trace, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.debug` log level.
@@ -157,8 +161,9 @@ extension JLog {
     @inlinable
     public static func debug(_ message: @autoclosure () -> Logger.Message = "",
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .debug, message: message(), metadata: metadata(),  file: file, function: function, line: line)
+        Self.logger.log(level: .debug, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.info` log level.
@@ -178,8 +183,9 @@ extension JLog {
     @inlinable
     public static func info(_ message: @autoclosure () -> Logger.Message = "",
                             metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                             file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .info, message: message(), metadata: metadata(), file: file, function: function, line: line)
+        Self.logger.log(level: .info, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.notice` log level.
@@ -199,8 +205,9 @@ extension JLog {
     @inlinable
     public static func notice(_ message: @autoclosure () -> Logger.Message = "",
                               metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                               file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .notice, message: message(), metadata: metadata(), file: file, function: function, line: line)
+        Self.logger.log(level: .notice, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.warning` log level.
@@ -220,8 +227,9 @@ extension JLog {
     @inlinable
     public static func warning(_ message: @autoclosure () -> Logger.Message = "",
                                metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                                file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .warning, message: message(), metadata: metadata(), file: file, function: function, line: line)
+        Self.logger.log(level: .warning, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.error` log level.
@@ -241,8 +249,9 @@ extension JLog {
     @inlinable
     public static func error(_ message: @autoclosure () -> Logger.Message = "",
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .error, message: message(), metadata: metadata(),  file: file, function: function, line: line)
+        Self.logger.log(level: .error, message: message(), metadata: metadata(),  source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.critical` log level.
@@ -261,7 +270,8 @@ extension JLog {
     @inlinable
     public static func critical(_ message: @autoclosure () -> Logger.Message = "",
                                 metadata: @autoclosure () -> Logger.Metadata? = nil,
+                             source: String = "all",
                                 file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .critical, message: message(), metadata: metadata(),  file: file, function: function, line: line)
+        Self.logger.log(level: .critical, message: message(), metadata: metadata(),  source:source,  file: file, function: function, line: line)
     }
 }

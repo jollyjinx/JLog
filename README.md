@@ -1,3 +1,8 @@
 # JLog
 
-A description of this package.
+Jollys logger for swift.
+
+``
+import JLog
+
+JLog.debug("bla Blub")
