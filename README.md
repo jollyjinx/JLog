@@ -1,12 +1,10 @@
-# JLog
+# JLog - Jollys simple logger for swift
 
-Jollys simple logger for swift. 
+- Logs to __both__ ~/Library/Logs/*programname*/*programname.log* as well as to *stderr*
+- Logrotation
+- Loglevel can be changed
 
-It logs to ~/Library/Logs/<name>/<name>.log as well as STDERR 
-It does logrotation
-Loglevel can be changed.
 It uses [swift-log](https://github.com/apple/swift-log) as well as [swift-log-format-and-pipe](https://github.com/Adorkable/swift-log-format-and-pipe) 
-
 
 Example progam in Sources/JLogExample uses [ArgumentParser](https://github.com/apple/swift-argument-parser):
 
