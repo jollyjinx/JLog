@@ -1,11 +1,24 @@
     import XCTest
+
+    @testable import Logging
     @testable import JLog
 
     final class JLogTests: XCTestCase {
-        func testExample() {
-            // This is an example of a functional test case.
-            // Use XCTAssert and related functions to verify your tests produce the correct
-            // results.
-            XCTAssertEqual(JLog().text, "Hello, World!")
+        func testExample()
+        {
+            for level in JLog.Level.allCases
+            {
+                JLog.loglevel = level
+                print("level now set to:\(level)")
+
+                JLog.info("notice")
+                JLog.info("info")
+                JLog.warning("warning")
+                JLog.error("error")
+                JLog.debug("debug")
+                JLog.trace("tracing")
+            }
+
+            XCTAssert(true)
         }
     }

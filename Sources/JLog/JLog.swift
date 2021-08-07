@@ -13,19 +13,29 @@ import LoggingFormatAndPipe
 class LogFile:TextOutputStream
 {
     let handle:FileHandle
+    let logExtension = "log"
 
     init?()
     {
-        let appname     = Bundle.main.infoDictionary![kCFBundleNameKey as String] as? String ?? ProcessInfo.processInfo.processName
-        let newlogname  = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("\(appname).log")
+        let appname         = Bundle.main.infoDictionary![kCFBundleNameKey as String] as? String ?? ProcessInfo.processInfo.processName
+        let logDirectoryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+                                .appendingPathComponent("Logs", isDirectory: true)
+                                .appendingPathComponent("\(appname)", isDirectory: true)
+        let baseLogfile     = logDirectoryURL
+                                .appendingPathComponent("\(appname)", isDirectory: false)
+        let logFilename     = baseLogfile
+                                .appendingPathExtension(logExtension)
 
-        Self.logrotate(logfilename: newlogname)
+        Self.logrotate(baseLogFile:baseLogfile,logExtension:logExtension)
+
+
 
         do
         {
-            FileManager.default.createFile(atPath: newlogname.path, contents: Data(), attributes:nil)
+            try FileManager.default.createDirectory(at: logDirectoryURL, withIntermediateDirectories: true, attributes: nil)
+            FileManager.default.createFile(atPath: logFilename.path, contents: Data(), attributes:nil)
 
-            handle = try FileHandle(forWritingTo: newlogname)
+            handle = try FileHandle(forWritingTo: logFilename)
             handle.seekToEndOfFile()
 
             write("************************************************************************************************\n")
@@ -33,7 +43,7 @@ class LogFile:TextOutputStream
         }
         catch
         {
-            print("Can't log to \(newlogname) \(error)")
+            FileHandle.standardError.write("Can't log to \(logFilename) \(error)".data(using: .utf8)!)
             return nil
         }
     }
@@ -44,26 +54,22 @@ class LogFile:TextOutputStream
     }
 
 
-    class func logrotate(logfilename:URL)
+    class func logrotate(baseLogFile:URL,logExtension:String)
     {
+        func filename(number:Int) -> URL { number == 0  ? baseLogFile.appendingPathExtension(logExtension)
+                                                        : baseLogFile.appendingPathExtension(String(number)).appendingPathExtension(logExtension)
+                                            }
         let fileManager = FileManager.default
 
-        let lastfilename = logfilename.appendingPathExtension("9")
-        try? fileManager.removeItem(at: lastfilename)
+        try? fileManager.removeItem(at: filename(number:9) )
 
-        for count in (1...8).reversed()
+        for number in (0...8).reversed()
         {
-            let currentfilename = logfilename.appendingPathExtension("\(count)")
-
-            if  fileManager.fileExists(atPath: currentfilename.path)
+            if fileManager.fileExists(atPath: filename(number:number).path)
             {
-                let movetofilename  = logfilename.appendingPathExtension("\(count+1)")
-
-                try? fileManager.moveItem(at: currentfilename, to: movetofilename)
+                try? fileManager.moveItem(at: filename(number:number), to: filename(number:number+1))
             }
         }
-        try? fileManager.moveItem(at: logfilename, to: logfilename.appendingPathExtension("1"))
-
     }
 
     func write(_ string: String)
@@ -75,18 +81,26 @@ class LogFile:TextOutputStream
 
 
 
+
 public class JLog
 {
+    public typealias Level = Logger.Level
+
     static var _logger:LogHandler?
 
-    public static var logger:LogHandler { get { return _logger ?? createLogger() } }
+    public static var logger:LogHandler     {   get { return _logger ?? createLogger() }
+                                                set { _logger = newValue }
+                                            }
+    public static var loglevel:Level        {   get { return Self.logger.logLevel }
+                                                set { Self.logger.logLevel = newValue }
+                                            }
 
     fileprivate static func createLogger() -> LogHandler
     {
         var handlers = [LogHandler]()
 
-        let stdOutHandler = StreamLogHandler.standardError(label:"eu.jinx.Logger.stderr")
-        handlers.append(stdOutHandler)
+        let stdErrHandler = LoggingFormatAndPipe.Handler(formatter: BasicFormatter.adorkable, pipe: LoggerTextOutputStreamPipe.standardError)
+        handlers.append(stdErrHandler)
 
         if let log = LogFile()
         {
@@ -101,7 +115,7 @@ public class JLog
 //        var logger = Logger(label: "eu.jinx.Logger")
 //        logger.logLevel = .trace
         #if DEBUG
-            multiplexLogHandler.logLevel = .trace
+            multiplexLogHandler.logLevel = .debug
         #else
             multiplexLogHandler.logLevel = .warning
         #endif
