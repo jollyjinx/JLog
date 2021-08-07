@@ -11,7 +11,7 @@ final class JLogTests: XCTestCase {
             JLog.loglevel = level
             print("level now set to:\(level)")
 
-            JLog.info("notice")
+            JLog.notice("notice")
             JLog.info("info")
             JLog.warning("warning")
             JLog.error("error")
