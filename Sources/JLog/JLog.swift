@@ -22,9 +22,14 @@ class LogFile:TextOutputStream
     init?()
     {
         let appname         = Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String ?? ProcessInfo.processInfo.processName
-        let logDirectoryURL = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
+        var logDirectoryURL = URL(fileURLWithPath:".")
+
+        if let macLogDirectory = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
+        {
+            logDirectoryURL = macLogDirectory
                                 .appendingPathComponent("Logs", isDirectory: true)
                                 .appendingPathComponent("\(appname)", isDirectory: true)
+        }
         let baseLogfile     = logDirectoryURL
                                 .appendingPathComponent("\(appname)", isDirectory: false)
         let logFilename     = baseLogfile
