@@ -10,6 +10,10 @@ import Foundation
 import Logging
 import LoggingFormatAndPipe
 
+#if os(Linux)
+fileprivate let kCFBundleNameKey = "CFBundleName"
+#endif
+
 class LogFile:TextOutputStream
 {
     let handle:FileHandle
