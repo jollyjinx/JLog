@@ -14,6 +14,7 @@ import LoggingFormatAndPipe
 fileprivate let kCFBundleNameKey = "CFBundleName"
 #endif
 
+
 class LogFile:TextOutputStream
 {
     let handle:FileHandle
@@ -164,6 +165,7 @@ extension JLog {
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
+        guard self.logger.logLevel <= .trace else { return }
         Self.logger.log(level: .trace, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
@@ -186,6 +188,7 @@ extension JLog {
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
+        guard self.logger.logLevel <= .debug else { return }
         Self.logger.log(level: .debug, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
@@ -208,6 +211,7 @@ extension JLog {
                             metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                             file: String = #file, function: String = #function, line: UInt = #line) {
+        guard self.logger.logLevel <= .info else { return }
         Self.logger.log(level: .info, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
@@ -230,7 +234,8 @@ extension JLog {
                               metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                               file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .notice, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
+         guard self.logger.logLevel <= .notice else { return }
+       Self.logger.log(level: .notice, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.warning` log level.
@@ -252,6 +257,7 @@ extension JLog {
                                metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                                file: String = #file, function: String = #function, line: UInt = #line) {
+         guard self.logger.logLevel <= .warning else { return }
         Self.logger.log(level: .warning, message: message(), metadata: metadata(), source:source,  file: file, function: function, line: line)
     }
 
@@ -274,7 +280,8 @@ extension JLog {
                              metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                              file: String = #file, function: String = #function, line: UInt = #line) {
-        Self.logger.log(level: .error, message: message(), metadata: metadata(),  source:source,  file: file, function: function, line: line)
+           guard self.logger.logLevel <= .error else { return }
+      Self.logger.log(level: .error, message: message(), metadata: metadata(),  source:source,  file: file, function: function, line: line)
     }
 
     /// Log a message passing with the `Logger.Level.critical` log level.
@@ -295,6 +302,7 @@ extension JLog {
                                 metadata: @autoclosure () -> Logger.Metadata? = nil,
                              source: String = "all",
                                 file: String = #file, function: String = #function, line: UInt = #line) {
+           guard self.logger.logLevel <= .critical else { return }
         Self.logger.log(level: .critical, message: message(), metadata: metadata(),  source:source,  file: file, function: function, line: line)
     }
 }
