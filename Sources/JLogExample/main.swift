@@ -1,5 +1,9 @@
-import Foundation
+//
+//  main.swift
+//
+
 import ArgumentParser
+import Foundation
 import JLog
 
 struct JLogExample: ParsableCommand
@@ -11,7 +15,7 @@ struct JLogExample: ParsableCommand
     {
         if debug > 0
         {
-            JLog.loglevel =  debug > 1 ? .trace : .debug
+            JLog.loglevel = debug > 1 ? .trace : .debug
         }
 
         JLog.notice("notice")
@@ -22,4 +26,5 @@ struct JLogExample: ParsableCommand
         JLog.trace("tracing")
     }
 }
+
 JLogExample.main()

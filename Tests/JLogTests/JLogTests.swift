@@ -1,9 +1,14 @@
+//
+//  JLogTests.swift
+//
+
 import XCTest
 
-@testable import Logging
 @testable import JLog
+@testable import Logging
 
-final class JLogTests: XCTestCase {
+final class JLogTests: XCTestCase
+{
     func testExample()
     {
         for level in JLog.Level.allCases
