@@ -6,6 +6,7 @@ import Foundation
 import Logging
 import LoggingFormatAndPipe
 import RegexBuilder
+import Synchronization
 
 #if os(Linux)
     private let kCFBundleNameKey = "CFBundleName"
@@ -102,23 +103,25 @@ public class JLog
 {
     public typealias Level = Logger.Level
 
-    static var _logger: LogHandler?
-
-    public static var logger: LogHandler
+    public static var loglevel: Logger.Level
     {
-        get { return _logger ?? createLogger() }
-        set { _logger = newValue }
+        get { logger.withLock { $0.logLevel } }
+        set {
+                switch newValue
+                {
+                    case .trace: logger.withLock({ $0.logLevel = .trace })
+                    case .info: logger.withLock({ $0.logLevel = .info })
+                    case .warning: logger.withLock({ $0.logLevel = .warning })
+                    case .error: logger.withLock({ $0.logLevel = .error })
+                    case .debug: logger.withLock({ $0.logLevel = .debug })
+                    case .critical: logger.withLock({ $0.logLevel = .critical })
+                    case .notice: logger.withLock({ $0.logLevel = .notice })
+                }
+            }
     }
 
-    public static var loglevel: Level
-    {
-        get { return logger.logLevel }
-        set { logger.logLevel = newValue }
-    }
-
-    public static var lastPathComponentPattern = #/\/([^\/]+)$/#
-
-    fileprivate static func createLogger() -> LogHandler
+    public static let lastPathComponentPattern = Mutex<Regex>(/\/([^\/]+)$/)
+    public static let logger = Mutex<LogHandler>(
     {
         var handlers = [LogHandler]()
 
@@ -143,9 +146,10 @@ public class JLog
         #else
             multiplexLogHandler.logLevel = .warning
         #endif
-        _logger = multiplexLogHandler
         return multiplexLogHandler
-    }
+    }()
+    )
+
 }
 
 public extension JLog
@@ -170,22 +174,19 @@ public extension JLog
                       source: String = "all",
                       file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .trace else { return }
+        guard  loglevel <= .trace else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        let lastPathComponent: String
-
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
-        }
-        else
-        {
-            lastPathComponent = file
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
 
-        Self.logger.log(level: .trace, message: message(), metadata: metadata(),
+        Self.logger.withLock({$0.log(level: .trace, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 
     /// Log a message passing with the `Logger.Level.debug` log level.
@@ -208,21 +209,19 @@ public extension JLog
                       source: String = "all",
                       file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .debug else { return }
+        guard loglevel <= .debug else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        let lastPathComponent: String
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
+        }
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
-        }
-        else
-        {
-            lastPathComponent = file
-        }
-        Self.logger.log(level: .debug, message: message(), metadata: metadata(),
+        logger.withLock({ $0.log(level: .debug, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line) })
     }
 
     /// Log a message passing with the `Logger.Level.info` log level.
@@ -245,20 +244,19 @@ public extension JLog
                      source: String = "all",
                      file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .info else { return }
-        let lastPathComponent: String
+        guard loglevel <= .info else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
-        else
-        {
-            lastPathComponent = file
-        }
-        Self.logger.log(level: .info, message: message(), metadata: metadata(),
+
+        logger.withLock({ $0.log(level: .info, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 
     /// Log a message passing with the `Logger.Level.notice` log level.
@@ -281,20 +279,19 @@ public extension JLog
                        source: String = "all",
                        file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .notice else { return }
-        let lastPathComponent: String
+        guard loglevel <= .notice else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
-        else
-        {
-            lastPathComponent = file
-        }
-        Self.logger.log(level: .notice, message: message(), metadata: metadata(),
+
+        logger.withLock({ $0.log(level: .notice, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 
     /// Log a message passing with the `Logger.Level.warning` log level.
@@ -317,21 +314,19 @@ public extension JLog
                         source: String = "all",
                         file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .warning else { return }
-        let lastPathComponent: String
+        guard loglevel <= .warning else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
-        }
-        else
-        {
-            lastPathComponent = file
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
 
-        Self.logger.log(level: .warning, message: message(), metadata: metadata(),
+        logger.withLock({ $0.log(level: .warning, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 
     /// Log a message passing with the `Logger.Level.error` log level.
@@ -354,21 +349,19 @@ public extension JLog
                       source: String = "all",
                       file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .error else { return }
-        let lastPathComponent: String
+        guard loglevel <= .error else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
-        }
-        else
-        {
-            lastPathComponent = file
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
 
-        Self.logger.log(level: .error, message: message(), metadata: metadata(),
+        logger.withLock({ $0.log(level: .error, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 
     /// Log a message passing with the `Logger.Level.critical` log level.
@@ -390,20 +383,18 @@ public extension JLog
                          source: String = "all",
                          file: String = #file, function: String = #function, line: UInt = #line)
     {
-        guard logger.logLevel <= .critical else { return }
-        let lastPathComponent: String
+        guard loglevel <= .critical else { return }
+        let lastPathComponent: String = lastPathComponentPattern.withLock {
 
-        if let lastPathComponentSubstring = try? lastPathComponentPattern.firstMatch(in: file)?.1
-        {
-            lastPathComponent = String(lastPathComponentSubstring)
-        }
-        else
-        {
-            lastPathComponent = file
+            if let lastPathComponentSubstring = try? $0.firstMatch(in: file)?.1
+            {
+                return  String(lastPathComponentSubstring)
+            }
+            return file
         }
 
-        Self.logger.log(level: .critical, message: message(), metadata: metadata(),
+        logger.withLock({ $0.log(level: .critical, message: message(), metadata: metadata(),
                         source: source, file: lastPathComponent, function: function,
-                        line: line)
+                        line: line)})
     }
 }
