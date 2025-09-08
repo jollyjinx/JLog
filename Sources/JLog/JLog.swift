@@ -12,41 +12,54 @@ import Synchronization
     private let kCFBundleNameKey = "CFBundleName"
 #endif
 
-class LogFile: TextOutputStream
+public class JLogLogfile: TextOutputStream
 {
     let handle: FileHandle
-    let logExtension = "log"
 
-    init?()
+
+    public static var logfilePrefix:String
     {
-        let appname =
-            Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String
-                ?? ProcessInfo.processInfo.processName
+        Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String
+        ?? ProcessInfo.processInfo.processName
+    }
+
+    public static let logfileExtension = "log"
+
+    public static var logDirectory:URL
+    {
         var logDirectoryURL = URL(fileURLWithPath: ".")
 
         if let macLogDirectory = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first
         {
-            logDirectoryURL =
-                macLogDirectory
+            logDirectoryURL = macLogDirectory
                     .appendingPathComponent("Logs", isDirectory: true)
-                    .appendingPathComponent("\(appname)", isDirectory: true)
+                    .appendingPathComponent("\(logfilePrefix)", isDirectory: true)
         }
-        let baseLogfile =
-            logDirectoryURL
-                .appendingPathComponent("\(appname)", isDirectory: false)
-        let logFilename =
-            baseLogfile
-                .appendingPathExtension(logExtension)
+        return logDirectoryURL
+    }
 
-        Self.logrotate(baseLogFile: baseLogfile, logExtension: logExtension)
+    public static var baseLogfile:URL
+    {
+        JLogLogfile.logDirectory.appendingPathComponent("\(logfilePrefix)", isDirectory: false)
+    }
+    public static var logFile:URL
+    {
+        return baseLogfile.appendingPathExtension(logfileExtension)
+    }
+
+
+
+    init?()
+    {
+        JLogLogfile.logrotate(baseLogFile: JLogLogfile.baseLogfile, logExtension: JLogLogfile.logfileExtension)
 
         do
         {
-            try FileManager.default.createDirectory(at: logDirectoryURL, withIntermediateDirectories: true,
+            try FileManager.default.createDirectory(at: JLogLogfile.logDirectory, withIntermediateDirectories: true,
                                                     attributes: nil)
-            FileManager.default.createFile(atPath: logFilename.path, contents: Data(), attributes: nil)
+            FileManager.default.createFile(atPath: JLogLogfile.logFile.path, contents: Data(), attributes: nil)
 
-            handle = try FileHandle(forWritingTo: logFilename)
+            handle = try FileHandle(forWritingTo: JLogLogfile.logFile)
             handle.seekToEndOfFile()
 
             write(
@@ -59,7 +72,7 @@ class LogFile: TextOutputStream
         catch
         {
             FileHandle.standardError.write(
-                "Can't log to \(logFilename) \(error)".data(using: .utf8)!)
+                "Can't log to \(JLogLogfile.logFile) \(error)".data(using: .utf8)!)
             return nil
         }
     }
@@ -69,7 +82,23 @@ class LogFile: TextOutputStream
         try? handle.close()
     }
 
-    class func logrotate(baseLogFile: URL, logExtension: String)
+    public static var existingLogfiles: [URL]
+    {
+        guard let enumerator = FileManager.default.enumerator(at:JLogLogfile.logDirectory ,includingPropertiesForKeys: [.isRegularFileKey],options: [.skipsHiddenFiles])
+        else { return [] }
+
+        var urls: [URL] = []
+
+        for case let fileURL as URL in enumerator
+            where       fileURL.pathExtension == JLogLogfile.logfileExtension
+                    &&  fileURL.lastPathComponent.hasPrefix(JLogLogfile.logfilePrefix)
+        {
+            urls.append(fileURL)
+        }
+        return urls
+    }
+
+    static func logrotate(baseLogFile: URL, logExtension: String)
     {
         func filename(number: Int) -> URL
         {
@@ -92,7 +121,7 @@ class LogFile: TextOutputStream
         }
     }
 
-    func write(_ string: String)
+    public func write(_ string: String)
     {
         handle.write(string.data(using: .utf8)!)
         try? handle.synchronize()
@@ -129,7 +158,7 @@ public class JLog
                                                          pipe: LoggerTextOutputStreamPipe.standardError)
         handlers.append(stdErrHandler)
 
-        if let log = LogFile()
+        if let log = JLogLogfile()
         {
             let pipe = LoggerTextOutputStreamPipe(log)
             let handler = LoggingFormatAndPipe.Handler(formatter: BasicFormatter.adorkable, pipe: pipe)
