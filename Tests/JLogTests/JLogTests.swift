@@ -2,13 +2,14 @@
 //  JLogTests.swift
 //
 
-import XCTest
-
+import Foundation
+import Testing
 @testable import JLog
 @testable import Logging
 
-final class JLogTests: XCTestCase
+struct JLogTests
 {
+    @Test
     func testExample()
     {
         for level in JLog.Level.allCases
@@ -23,7 +24,20 @@ final class JLogTests: XCTestCase
             JLog.debug("debug")
             JLog.trace("tracing")
         }
-
-        XCTAssert(true)
     }
+
+
+    @Test
+    func testLogfilename()
+    {
+        print("logfilename:\( JLogLogfile.logFile )")
+    }
+
+    @Test
+    func testLogfilenames()
+    {
+        print("logfilenames:\( JLogLogfile.existingLogfiles )") 
+    }
+
+
 }

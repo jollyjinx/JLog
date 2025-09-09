@@ -44,10 +44,7 @@ public class JLogLogfile: TextOutputStream
     }
     public static var logFile:URL
     {
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone]
-
-        let dateString = dateFormatter.string(from: Date())
+        let dateString = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withInternetDateTime, .withTimeZone])
         return baseLogfile.appendingPathExtension(dateString).appendingPathExtension(logfileExtension)
     }
 
@@ -55,7 +52,7 @@ public class JLogLogfile: TextOutputStream
 
     init?()
     {
-        JLogLogfile.removeLogfilesKeepOnly(upToBytes:10_000_000,baseLogFile: JLogLogfile.baseLogfile, logExtension: JLogLogfile.logfileExtension)
+        JLogLogfile.removeLogfilesKeepOnly()
 
         do
         {
@@ -99,20 +96,29 @@ public class JLogLogfile: TextOutputStream
         {
             urls.append(fileURL)
         }
-        return urls
+        return urls.sorted(by: { modifedDateOf($0) > modifedDateOf($1) })
     }
 
-    static func removeLogfilesKeepOnly(upToBytes:UInt64 = 10_000_000,baseLogFile: URL, logExtension: String)
+    private static func modifedDateOf(_ url: URL) -> Date {
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) as [FileAttributeKey : Any],
+                  let modificationDate = attributes[FileAttributeKey.modificationDate] as? Date
+            else { return .distantPast }
+            return modificationDate
+        }
+
+
+    public static func removeLogfilesKeepOnly(upToBytes:UInt64 = 10_000_000,upToCount: Int = 10,baseLogFile: URL = JLogLogfile.baseLogfile , logExtension: String = JLogLogfile.logfileExtension)
     {
-        let logfiles = existingLogfiles.sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
+        let logfiles = existingLogfiles
         var currentSize:UInt64 = 0
+        var currentCount:Int = 0
 
         for file in logfiles
         {
-            guard currentSize < upToBytes
+            guard currentSize < upToBytes && currentCount < upToCount
             else
             {
-                JLog.debug("Size reached - removing: \(file.path)")
+//                JLog.debug("Size:\(currentSize) or Count:\(currentCount) reached - removing: \(file.path)")
                 _ = try? FileManager.default.removeItem(at: file)
                 continue
             }
@@ -121,16 +127,18 @@ public class JLogLogfile: TextOutputStream
                 let fileSize = attributes[FileAttributeKey.size] as? UInt64
             else
             {
-                JLog.error("Could not read attributes of logfile:\(file.path) - removing")
+//                JLog.error("Could not read attributes of logfile:\(file.path) - removing")
                 _ = try? FileManager.default.removeItem(at: file)
                 continue
             }
-            currentSize = currentSize + fileSize
 
-            guard currentSize < upToBytes
+            currentSize = currentSize + fileSize
+            currentCount = currentCount + 1
+
+            guard currentSize < upToBytes && currentCount < upToCount
             else
             {
-                JLog.debug("Size reached - removing: \(file.path)")
+//                JLog.debug("Size reached - removing: \(file.path)")
                 _ = try? FileManager.default.removeItem(at: file)
                 continue
             }
