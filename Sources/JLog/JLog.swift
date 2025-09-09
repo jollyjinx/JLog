@@ -44,14 +44,18 @@ public class JLogLogfile: TextOutputStream
     }
     public static var logFile:URL
     {
-        return baseLogfile.appendingPathExtension(logfileExtension)
+        let dateFormatter = ISO8601DateFormatter()
+        dateFormatter.formatOptions = [.withInternetDateTime, .withTimeZone]
+
+        let dateString = dateFormatter.string(from: Date())
+        return baseLogfile.appendingPathExtension(dateString).appendingPathExtension(logfileExtension)
     }
 
 
 
     init?()
     {
-        JLogLogfile.logrotate(baseLogFile: JLogLogfile.baseLogfile, logExtension: JLogLogfile.logfileExtension)
+        JLogLogfile.removeLogfilesKeepOnly(upToBytes:10_000_000,baseLogFile: JLogLogfile.baseLogfile, logExtension: JLogLogfile.logfileExtension)
 
         do
         {
@@ -98,25 +102,37 @@ public class JLogLogfile: TextOutputStream
         return urls
     }
 
-    static func logrotate(baseLogFile: URL, logExtension: String)
+    static func removeLogfilesKeepOnly(upToBytes:UInt64 = 10_000_000,baseLogFile: URL, logExtension: String)
     {
-        func filename(number: Int) -> URL
-        {
-            number == 0
-                ? baseLogFile.appendingPathExtension(logExtension)
-                : baseLogFile.appendingPathExtension(String(number))
-                .appendingPathExtension(logExtension)
-        }
-        let fileManager = FileManager.default
+        let logfiles = existingLogfiles.sorted(by: { $0.lastPathComponent > $1.lastPathComponent })
+        var currentSize:UInt64 = 0
 
-        try? fileManager.removeItem(at: filename(number: 9))
-
-        for number in (0 ... 8).reversed()
+        for file in logfiles
         {
-            if fileManager.fileExists(atPath: filename(number: number).path)
+            guard currentSize < upToBytes
+            else
             {
-                try? fileManager.moveItem(at: filename(number: number),
-                                          to: filename(number: number + 1))
+                JLog.debug("Size reached - removing: \(file.path)")
+                _ = try? FileManager.default.removeItem(at: file)
+                continue
+            }
+
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path) as [FileAttributeKey : Any],
+                let fileSize = attributes[FileAttributeKey.size] as? UInt64
+            else
+            {
+                JLog.error("Could not read attributes of logfile:\(file.path) - removing")
+                _ = try? FileManager.default.removeItem(at: file)
+                continue
+            }
+            currentSize = currentSize + fileSize
+
+            guard currentSize < upToBytes
+            else
+            {
+                JLog.debug("Size reached - removing: \(file.path)")
+                _ = try? FileManager.default.removeItem(at: file)
+                continue
             }
         }
     }
